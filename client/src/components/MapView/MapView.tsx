@@ -7,7 +7,7 @@ import {
   NavigationControl,
   MapRef,
 } from 'react-map-gl/maplibre';
-import maplibregl, { VectorTileSource } from 'maplibre-gl';
+import maplibregl, { VectorTileSource, GeoJSONSourceSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { TripPattern, TripQuery, TripQueryVariables } from '../../gql/graphql.ts';
 import { NavigationMarkers } from './NavigationMarkers.tsx';
@@ -20,6 +20,38 @@ import RightMenu from './RightMenu.tsx';
 import { findSelectedDebugLayers } from '../../util/map.ts';
 
 const styleUrl = import.meta.env.VITE_DEBUG_STYLE_URL;
+
+const norwayBorderSource: GeoJSONSourceSpecification = {
+  type: 'geojson',
+  data: {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [4.99207, 58.0788],
+          [12.0, 58.0],
+          [15.0, 59.0],
+          [18.0, 61.0],
+          [22.0, 64.0],
+          [25.0, 67.0],
+          [28.0, 70.0],
+          [31.0, 70.5],
+          [28.5, 71.2],
+          [25.8, 71.2],
+          [22.0, 70.0],
+          [18.0, 69.0],
+          [12.0, 67.0],
+          [8.0, 63.0],
+          [5.0, 60.0],
+          [4.99207, 58.0788]
+        ]]
+      }
+    }]
+  }
+};
 
 type PopupData = { coordinates: LngLat; feature: MapGeoJSONFeature };
 
@@ -77,7 +109,38 @@ export function MapView({
     // 1) Call your existing function
     panToWorldEnvelopeIfRequired(e);
 
-    const selected = findSelectedDebugLayers(e.target);
+    const map = e.target;
+    
+    // Add Norway border highlighting
+    if (!map.getSource('norway-borders')) {
+      map.addSource('norway-borders', norwayBorderSource);
+    }
+    
+    // Add Norway border highlighting
+    if (!map.getLayer('norway-highlight')) {
+      map.addLayer({
+        id: 'norway-highlight',
+        type: 'line',
+        source: 'norway-borders',
+        paint: {
+          'line-color': '#ff0000',
+          'line-width': 3,
+          'line-opacity': 1
+        },
+        layout: {
+          'visibility': 'visible'
+        },
+        metadata: {
+          group: 'Borders',
+          name: 'Norway Border Highlight'
+        }
+      });
+    }
+
+    // Force layer control to update
+    map.fire('styledata');
+
+    const selected = findSelectedDebugLayers(map);
     setInteractiveLayerIds(selected);
 
     // 2) Add the native MapLibre attribution control
